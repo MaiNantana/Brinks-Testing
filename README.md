@@ -47,12 +47,15 @@ The default connection string in `src/appsettings.json` targets SQL Server Local
 ```powershell
 dotnet tool install --global dotnet-ef --version 10.0.0   # once
 dotnet ef database update --project src
+$env:ASPNETCORE_ENVIRONMENT = "Development"   # enables Swagger
 dotnet run --project src
 ```
 
 The API does not manage `Customers` and `Products`; insert test rows into those tables before creating orders.
 
-When running in the `Development` environment, Swagger UI is available at `/swagger` and the OpenAPI document at `/swagger/v1/swagger.json`.
+When running in the `Development` environment, Swagger UI is available at `/swagger` and the OpenAPI document at `/swagger/v1/swagger.json`. Without `ASPNETCORE_ENVIRONMENT=Development` the app starts in `Production` and `/swagger` returns 404.
+
+Verified on 2026-11-02: the app listens on `http://localhost:5000`, logs `Hosting environment: Development`, and `GET /swagger/index.html` returns 200.
 
 ## Test
 
@@ -66,6 +69,43 @@ dotnet test BrinkTest.sln
 | Integration | `OrdersEndpointTests` | Full HTTP pipeline via `WebApplicationFactory`. Status codes and ProblemDetails, unknown customer/product, duplicate product lines, rollback when the insert fails, idempotency over HTTP, Swagger document |
 
 SQLite is used instead of the EF Core InMemory provider because the service relies on real transactions and `ExecuteUpdateAsync`, which InMemory does not support.
+
+### Test run results
+
+Run on 2026-11-02 with .NET SDK 10.0.403:
+
+| Suite | Tests | Passed | Failed |
+|---|---|---|---|
+| `OrderServiceTests` (unit) | 9 | 9 | 0 |
+| `OrdersEndpointTests` (integration) | 14 | 14 | 0 |
+| **Total** | **23** | **23** | **0** |
+
+<details>
+<summary>Individual tests</summary>
+
+| Suite | Test | Result |
+|---|---|---|
+| Unit | `CreateOrderAsync_AvailableProduct_CreatesPendingOrderAndReservesStock` | Passed |
+| Unit | `CreateOrderAsync_InsufficientStock_ReturnsInsufficientStockAndDoesNotCreateOrder` | Passed |
+| Unit | `CreateOrderAsync_InactiveProduct_ReturnsProductInactiveAndDoesNotCreateOrder` | Passed |
+| Unit | `CreateOrderAsync_InvalidQuantity_ReturnsValidationErrorWithoutQueryingProducts` | Passed |
+| Unit | `CreateOrderAsync_SameIdempotencyKeyTwice_ReturnsOriginalOrderAndReservesStockOnce` | Passed |
+| Unit | `CreateOrderAsync_IdempotencyKeyReusedWithDifferentRequest_ReturnsIdempotencyKeyReused` | Passed |
+| Unit | `CreateOrderAsync_InvalidIdempotencyKey_ReturnsValidationError` (3 cases: empty, whitespace, over 64 chars) | Passed |
+| Integration | `CreateOrder_ValidRequest_CreatesOrderAndDecrementsStock` | Passed |
+| Integration | `CreateOrder_InvalidRequest_ReturnsValidationProblem` (4 cases) | Passed |
+| Integration | `CreateOrder_UnknownCustomer_ReturnsNotFound` | Passed |
+| Integration | `CreateOrder_UnknownProduct_ReturnsNotFound` | Passed |
+| Integration | `CreateOrder_UnavailableProduct_ReturnsConflictAndDoesNotCreateOrder` (2 cases: inactive, insufficient stock) | Passed |
+| Integration | `CreateOrder_RepeatedProductItems_AggregatesQuantities` | Passed |
+| Integration | `CreateOrder_OrderInsertFailure_RollsBackStockUpdate` | Passed |
+| Integration | `CreateOrder_RetriedWithSameIdempotencyKey_ReturnsOkWithOriginalOrder` | Passed |
+| Integration | `CreateOrder_IdempotencyKeyReusedWithDifferentPayload_ReturnsUnprocessableEntity` | Passed |
+| Integration | `Swagger_DevelopmentEnvironment_ExposesUiAndOrderOperation` | Passed |
+
+</details>
+
+The test output includes `SQLite Error 19: 'test failure'`. This is expected: `CreateOrder_OrderInsertFailure_RollsBackStockUpdate` forces the order insert to fail to prove the stock update is rolled back.
 
 ## Create an order
 
