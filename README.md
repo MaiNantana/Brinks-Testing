@@ -7,6 +7,7 @@ A .NET 10 Minimal API that creates orders using EF Core and SQL Server.
 | Part | Deliverable | Location |
 |---|---|---|
 | 1 – System design | Order processing sequence diagram (API, SQL Server, Redis, RabbitMQ, payment, shipping) | [`docs/1-Diagram/Diagram.drawio`](docs/1-Diagram/Diagram.drawio) |
+| 1.2–1.5 – Design decisions | Sync vs async processing, RabbitMQ usage, concurrency and overselling, duplicate messages and idempotency | [`docs/1-Diagram/1.2-1.5`](docs/1-Diagram/1.2-1.5) |
 | 2 – SQL Server | Create-order transaction script | [`docs/2-Query/order.sql`](docs/2-Query/order.sql) |
 | 3.1 – .NET implementation | `POST /api/orders` | [`src/`](src/) |
 | 3.2 – Unit tests | Unit and integration tests | [`test/BrinkTest.Api.Tests/`](test/BrinkTest.Api.Tests/) |
@@ -19,7 +20,7 @@ BrinkTest.sln
 ├── .github/
 │   └── copilot-instructions.md   Rules for AI-generated code
 ├── docs/
-│   ├── 1-Diagram/                Part 1: order flow diagram (.drawio, .png)
+│   ├── 1-Diagram/                Part 1: order flow diagram (.drawio, .png), 1.2-1.5 notes
 │   ├── 2-Query/                  Part 2: setup.sql, create-order SQL
 │   ├── 3-Testing/                Part 3: prompts for tests
 │   ├── promt-first.md            Part 3: first prompt
